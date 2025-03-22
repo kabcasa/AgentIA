@@ -1,0 +1,391 @@
+{
+  "name": "RAG solutionsIA GSheet",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.Message }}",
+        "options": {
+          "systemMessage": "=# RÔLE\nVous êtes un assistant serviable\nVotre nom est Sam. Répondez sur un ton amical et serviable.\n\n# Informations importantes\nVous parlez à {{ $json.Name }}\nDéfinissez le fuseau horaire : Afrique/Casablanca\nDate et heure actuelles : {{ $now }}\nvous utiliserez l'outil pour récupérer la réponse au message fourni et envoyer la réponse par e-mail\n\n# Outils\n## base de connaissance\nUtilisez cet outil pour récupérer la réponse au {{ $json.Message }} et en vous basant exclusivement sur les informations trouvées avec l'outil \"base de connaissance\".**\n- **Si \"base de connaissance\" renvoie des résultats**, reformulez une réponse claire et concise. - **Si \"base de connaissance\" ne renvoie rien**, n'invente pas de réponse, indique seulement qu'aucune donnée n'est disponible.\n\n## Envoyer un e-mail\nutilisez cet outil pour repondre à l'expediteur du message en envoyant un e-mail à {{ $json.email }}  selon le modèle  de sortie au format markdown suivant\n\n### *Si la question concerne nos services et que \"base de connaissance\" fournit des résultats* :\n```\nBonjour {{ $json.Name }},\n\nMerci pour votre message. Voici une réponse basée sur nos données :\n\n{{$json[\"ai_response\"]}}\n\nSi vous avez d'autres questions, n'hésitez pas à nous contacter.\n\nCordialement,  \nL’équipe FuturIA\n'''\n### *Si la question ne concerne pas nos services et que \"base de connaissance\" ne fournit pas de résultats* :\n```\nBonjour {{ $json.Name }},\n\nMerci pour votre message. Malheureusement, nous ne disposons pas d’informations précises pour répondre à votre demande.  \n\nSi vous souhaitez en savoir plus sur nos services, n’hésitez pas à nous contacter.\n\nCordialement,  \nL’équipe FuturIA\n'''"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        220,
+        0
+      ],
+      "id": "61ba485e-dc3c-4df9-91d0-88e80dcba658",
+      "name": "AI Agent",
+      "executeOnce": false,
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "contact",
+        "toolDescription": "=Use this tool to retrieve answear to the  {{ $json.Message }}",
+        "qdrantCollection": {
+          "__rl": true,
+          "value": "contact_message",
+          "mode": "list",
+          "cachedResultName": "contact_message"
+        },
+        "topK": 3,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreQdrant",
+      "typeVersion": 1,
+      "position": [
+        360,
+        280
+      ],
+      "id": "58318cb8-3b92-4c9d-863a-21c8a5e3ceb6",
+      "name": "base de connaissance",
+      "credentials": {
+        "qdrantApi": {
+          "id": "Iq4Hz9kmJP8pByIo",
+          "name": "QdrantApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        180,
+        220
+      ],
+      "id": "c9f1df30-fcd0-4410-aa08-eb96a38e194d",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "1dS23381mc0BCbea",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        540,
+        420
+      ],
+      "id": "6182d0f0-4cac-4896-9e6f-1a972f23f2ad",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "1dS23381mc0BCbea",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('Google Sheets Trigger').item.json.email }}",
+        "subject": "=Réponse à votre message du {{ $('Google Sheets Trigger').item.json.Date }}",
+        "emailType": "text",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        760,
+        -60
+      ],
+      "id": "d7162262-c7eb-4ec4-8da0-89a157d8a585",
+      "name": "Gmail",
+      "webhookId": "e7054aac-e0b4-477d-9a42-43f7b7237b7a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KqhIQ5batTTy5Njc",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "custom",
+              "cronExpression": "=* * * * * *"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "19OhjZrD0YiuGPEpB_lHv-Btm70ZnfhMiQQiT0wlRLXg",
+          "mode": "list",
+          "cachedResultName": "contact_message",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19OhjZrD0YiuGPEpB_lHv-Btm70ZnfhMiQQiT0wlRLXg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Feuille 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19OhjZrD0YiuGPEpB_lHv-Btm70ZnfhMiQQiT0wlRLXg/edit#gid=0"
+        },
+        "event": "rowAdded",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        -20,
+        0
+      ],
+      "id": "47516482-8991-46d5-873a-db1db72c0276",
+      "name": "Google Sheets Trigger",
+      "credentials": {
+        "googleSheetsTriggerOAuth2Api": {
+          "id": "Y8bEk1Nq0dXVS8zK",
+          "name": "Google Sheets Trigger account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "19OhjZrD0YiuGPEpB_lHv-Btm70ZnfhMiQQiT0wlRLXg",
+          "mode": "list",
+          "cachedResultName": "contact_message",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19OhjZrD0YiuGPEpB_lHv-Btm70ZnfhMiQQiT0wlRLXg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Feuille 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/19OhjZrD0YiuGPEpB_lHv-Btm70ZnfhMiQQiT0wlRLXg/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Done",
+            "row_number": "={{ $('Google Sheets Trigger').item.json['1'] }}",
+            "Réponse": "={{ $json.output }}"
+          },
+          "matchingColumns": [
+            "row_number"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Message",
+              "displayName": "Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Réponse",
+              "displayName": "Réponse",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        660,
+        160
+      ],
+      "id": "f3e330a8-de1d-40f6-a233-6f763334446e",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "YRwf53LrrtbjMZ82",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        260,
+        360
+      ],
+      "id": "5feb86c3-8444-4db1-af45-6d80a1a102ad",
+      "name": "Window Buffer Memory"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "base de connaissance": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "base de connaissance",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0c3f445f-9558-4bdf-9a6e-8a78f979a007",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "78ec439a7aa1c6d9f7582297744db04067de1a2ec96ee647cecfa554bb83ca15"
+  },
+  "id": "qjVJhOfjiyFr8ie0",
+  "tags": [
+    {
+      "createdAt": "2025-02-19T17:53:36.070Z",
+      "updatedAt": "2025-02-19T17:53:36.070Z",
+      "id": "NNaMICDknQpMoFyH",
+      "name": "Email"
+    },
+    {
+      "createdAt": "2025-03-09T00:11:10.446Z",
+      "updatedAt": "2025-03-09T00:11:10.446Z",
+      "id": "TgCxdzAn2RYDqNvp",
+      "name": "GSheets"
+    }
+  ]
+}

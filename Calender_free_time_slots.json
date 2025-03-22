@@ -1,0 +1,173 @@
+{
+  "name": "Calender free time slots",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/calendar/v3/freeBusy",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"timeMin\": \"{{ $json['Date start'] }}T00:00:00Z\",\n  \"timeMax\": \"{{ $json['Date End'] }}T23:59:59Z\",\n  \"items\": [{ \"id\": \"primary\" }]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        220,
+        0
+      ],
+      "id": "93943042-d516-40b3-95ce-e95a1c43e26c",
+      "name": "HTTP Request",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "imNMuWuRUEd315YI",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the Freebusy response\nconst freebusyResponse = $input.all()[0];\n\n// Check if the response contains valid data\nif (!freebusyResponse || !$('HTTP Request').first().json.calendars || !$('HTTP Request').first().json.calendars.primary) {\n  return [{ error: \"No valid data found in Freebusy response.\" }];\n}\n\n// Get busy slots\nconst busySlots = $('HTTP Request').first().json.calendars.primary.busy;\n\n// Get parameters from Edit Fields node\nconst horaireDeTravail = $input.first().json.horaire_de_travail; // Example: \"9h-18h\"\nconst joursDeRepos = $input.first().json.jours_de_repos; // Example: \"samedi,dimanche\"\nconsole.log(\"Working hours:\", horaireDeTravail);\nconsole.log(\"Rest days:\", joursDeRepos);\n\n// Extract working hours\nconst [heureDebut, heureFin] = horaireDeTravail.split('-').map(h => {\n  return parseInt(h.replace('h', ''), 10);\n});\n\n// Convert rest days to array\nconst joursReposArray = joursDeRepos.split(',').map(jour => jour.trim().toLowerCase());\n\n// Define the search period (one week)\nconst startOfWeek = new Date($('HTTP Request').first().json.timeMin);\nconst endOfWeek = new Date($('HTTP Request').first().json.timeMax);\n\n// Function to check if a date is a rest day\nfunction isJourRepos(date) {\n  const joursSemaine = [\"dimanche\", \"lundi\", \"mardi\", \"mercredi\", \"jeudi\", \"vendredi\", \"samedi\"];\n  const jour = joursSemaine[date.getUTCDay()].toLowerCase();\n  return joursReposArray.includes(jour);\n}\n\n// Function to check if a time is within working hours (in local timezone)\nfunction isWithinWorkingHours(date) {\n  const hours = date.getUTCHours();\n  return hours >= heureDebut && hours < heureFin;\n}\n\n// Find all free slots first (between busy slots)\nlet allFreeSlots = [];\nlet lastEventEnd = new Date(startOfWeek);\n\n// Sort busy slots chronologically\nbusySlots.sort((a, b) => new Date(a.start) - new Date(b.start));\n\n// Find gaps between busy slots\nfor (const busySlot of busySlots) {\n  const busyStart = new Date(busySlot.start);\n  const busyEnd = new Date(busySlot.end);\n\n  // If there's a gap between last event end and current event start\n  if (busyStart > lastEventEnd) {\n    allFreeSlots.push({\n      start: lastEventEnd.toISOString(),\n      end: busyStart.toISOString()\n    });\n  }\n\n  // Update last event end\n  lastEventEnd = busyEnd > lastEventEnd ? busyEnd : lastEventEnd;\n}\n\n// Add final free slot if needed\nif (lastEventEnd < endOfWeek) {\n  allFreeSlots.push({\n    start: lastEventEnd.toISOString(),\n    end: endOfWeek.toISOString()\n  });\n}\n\n// Function to break down a slot into day chunks\nfunction breakIntoDayChunks(startDate, endDate) {\n  const chunks = [];\n  let currentStart = new Date(startDate);\n  \n  while (currentStart < endDate) {\n    // Set the end to either the end of the day or the endDate, whichever comes first\n    const dayEnd = new Date(currentStart);\n    dayEnd.setUTCHours(23, 59, 59, 999);\n    \n    const chunkEnd = dayEnd < endDate ? dayEnd : endDate;\n    \n    chunks.push({\n      start: new Date(currentStart),\n      end: new Date(chunkEnd)\n    });\n    \n    // Move to the next day\n    currentStart = new Date(dayEnd);\n    currentStart.setUTCDate(currentStart.getUTCDate() + 1);\n    currentStart.setUTCHours(0, 0, 0, 0);\n  }\n  \n  return chunks;\n}\n\n// Function to apply working hour constraints to a single day slot\nfunction applyWorkingHours(slot) {\n  const slotStart = new Date(slot.start);\n  const slotEnd = new Date(slot.end);\n  \n  // Skip if this is a rest day\n  if (isJourRepos(slotStart)) {\n    return null;\n  }\n  \n  // Adjust start time to working hours if needed\n  let workStart = new Date(slotStart);\n  if (workStart.getUTCHours() < heureDebut) {\n    workStart.setUTCHours(heureDebut, 0, 0, 0);\n  }\n  \n  // Adjust end time to working hours if needed\n  let workEnd = new Date(slotEnd);\n  if (workEnd.getUTCHours() >= heureFin || workEnd.getUTCHours() === 0) {\n    workEnd.setUTCHours(heureFin, 0, 0, 0);\n  }\n  \n  // Check if we still have a valid slot\n  if (workStart >= workEnd) {\n    return null;\n  }\n  \n  return {\n    start: workStart.toISOString(),\n    end: workEnd.toISOString()\n  };\n}\n\n// Filter and process all free slots\nlet filteredFreeSlots = [];\n\nfor (const slot of allFreeSlots) {\n  // Break the slot into day chunks\n  const dayChunks = breakIntoDayChunks(new Date(slot.start), new Date(slot.end));\n  \n  // Process each day chunk\n  for (const chunk of dayChunks) {\n    const processedChunk = applyWorkingHours(chunk);\n    if (processedChunk) {\n      filteredFreeSlots.push(processedChunk);\n    }\n  }\n}\n\n// Return the filtered free slots\nreturn filteredFreeSlots;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        540,
+        0
+      ],
+      "id": "fecb578c-c189-490d-bd5d-15bf6cacb222",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b4f2915e-e664-461a-b598-1a20535ee1a5",
+              "name": "horaire_de_travail",
+              "value": "9h-18h",
+              "type": "array"
+            },
+            {
+              "id": "6863a0f5-c658-45c4-a3a8-9194a7731797",
+              "name": "jours_de_repos",
+              "value": "samedi,dimanche",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {
+          "ignoreConversionErrors": true
+        }
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        380,
+        0
+      ],
+      "id": "64faf79e-fc7f-4771-b59f-d196210cc53f",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "content": "## Get all availables Google Calendar time slots from Date start and date end\n",
+        "height": 240,
+        "width": 820,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -80,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "51650e5b-de5d-4bd1-ac82-6e11a1f96a94",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "formTitle": "Free Time slots",
+        "formDescription": "Get free Time slots from G Calendar",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Date start",
+              "fieldType": "date"
+            },
+            {
+              "fieldLabel": "Date End",
+              "fieldType": "date"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -20,
+        0
+      ],
+      "id": "44f36dff-1717-4b6a-b7d0-8e381c82a3be",
+      "name": "On form submission",
+      "webhookId": "941cb42d-a63f-4a42-9f56-7a749d7d7815"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Casablanca",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "55069e6e-8d6f-4ac2-a8a8-572db929bc4a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "78ec439a7aa1c6d9f7582297744db04067de1a2ec96ee647cecfa554bb83ca15"
+  },
+  "id": "22bJECPapqW7rl8E",
+  "tags": []
+}

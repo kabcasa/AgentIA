@@ -1,0 +1,256 @@
+{
+  "name": "Transcript audio Google Drive file",
+  "nodes": [
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "=data",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        300,
+        -20
+      ],
+      "id": "2d5ca514-25b6-48de-b143-581b56d332eb",
+      "name": "OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "1dS23381mc0BCbea",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        100,
+        -20
+      ],
+      "id": "1d050767-3533-47bf-8f94-7fc173a464ed",
+      "name": "Google Drive",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "Ym1qiuK8ZYV2lPH3",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {}
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1UwhcVo3WiOF-Nu7yB9FPgKVanL1q_-Lh",
+          "mode": "list",
+          "cachedResultName": "Transcription",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1UwhcVo3WiOF-Nu7yB9FPgKVanL1q_-Lh"
+        },
+        "event": "fileUpdated",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        -20
+      ],
+      "id": "763c86c8-e02b-4bb9-a088-8ab59bcb31da",
+      "name": "Google Drive Trigger",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "Ym1qiuK8ZYV2lPH3",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Transcript a file when uploaded to Google Drive\n",
+        "height": 340,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -140,
+        -160
+      ],
+      "typeVersion": 1,
+      "id": "948cbaeb-d53c-4b4a-94f8-e330641616a6",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "folderId": "1GolATk5JnzFUiy5S3r8htV5gREgAc4K2",
+        "title": "={{ $json.originalFilename }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        140,
+        300
+      ],
+      "id": "ff79e11d-2000-4f9c-8460-32e1feb83b6d",
+      "name": "Google Docs2",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "3OFHWFtrCbhXAsd3",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3046c15b-7c27-4d86-b079-c8389ac199c2",
+              "name": "=originalFilename",
+              "value": "={{ ($('Google Drive Trigger').item.json.originalFilename).split(\".\")[0] }}.docs",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -80,
+        300
+      ],
+      "id": "42052fcb-bf0b-4c80-8dac-83ef30189b6f",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.id }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "insert",
+              "text": "={{ $('OpenAI').item.json.text }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        340,
+        300
+      ],
+      "id": "7f1da65f-94dd-483d-be64-a5fe928ed47c",
+      "name": "Google Docs",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "3OFHWFtrCbhXAsd3",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Save to Google docs file name : <file_audio>.docs",
+        "height": 220,
+        "width": 740,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -140,
+        240
+      ],
+      "typeVersion": 1,
+      "id": "a6e0d1af-78b3-47fc-96fa-d32b03d450c6",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Google Drive": {
+      "main": [
+        [
+          {
+            "node": "OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Drive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Docs2": {
+      "main": [
+        [
+          {
+            "node": "Google Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Google Docs2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "add4421c-3943-4184-afed-019d66164b78",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "78ec439a7aa1c6d9f7582297744db04067de1a2ec96ee647cecfa554bb83ca15"
+  },
+  "id": "Z0LOSExd9lPd5yKo",
+  "tags": []
+}

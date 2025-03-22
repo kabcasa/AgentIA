@@ -1,0 +1,455 @@
+{
+  "name": "Modif doc",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => {\n  // on accède ici à la structure JSON (item.json)\n  const { nom, prenom, date_naissance, profession, email } = item.json;\n\n  // Constrtuit pas à pas la phrase en évitant les champs vide\n  let phrase = \"\";\n\n  // Nom et Prénom\n  if (nom || prenom) {\n    // On assemble nom et prénom s'il existent\n    const nomPrenom = [nom, prenom].filter(Boolean).join(\" \");\n    phrase += nomPrenom;\n  }\n\n  // Profession\n  if (profession) {\n    phrase += phrase ? `, est né le ${date_naissance}` : `est né le ${date_naissance}`;\n  }\n\n  // Email\n  if (email) {\n    phrase += phrase ? `, email : ${email}` : `email : ${email}`;\n  }\n\n  // On renvoie un objet avec la phrase construite\n  return {\n    json: {\n      ...item.json,\n      phrase\n    }\n  };\n})"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        540,
+        120
+      ],
+      "id": "288578f0-afc8-42e9-bc2c-16cd00eceda9",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1000,
+        120
+      ],
+      "id": "c94f55fb-5943-4743-b343-2ea1fb34060d",
+      "name": "HTTP Request",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gLpTj9d96abhIFql",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1220,
+        120
+      ],
+      "id": "3556f945-7d1d-464c-bdbc-e9914db2bb86",
+      "name": "Récupération Doc",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "WcyvC6DvX0ruzXNW",
+          "name": "Google Docs account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentURL": "={{ $json.documentId }}",
+        "actionsUi": {
+          "actionFields": [
+            {
+              "action": "replaceAll",
+              "text": "=variable_1",
+              "replaceText": "={{ $('Code').item.json.phrase }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1460,
+        120
+      ],
+      "id": "27eca489-28da-4c58-9250-1ad3067cfe21",
+      "name": "Google Docs2",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "WcyvC6DvX0ruzXNW",
+          "name": "Google Docs account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.documentId }}/export",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "=mimeType",
+              "value": "=application/pdf"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        120
+      ],
+      "id": "ae31db22-0a82-4df6-b1f9-9acac0a026d7",
+      "name": "HTTP Request1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gLpTj9d96abhIFql",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Extraction Informations",
+        "height": 340,
+        "width": 680
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "03295399-5339-4293-906f-219f74e5727e",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Création Nouveau Document",
+        "height": 340,
+        "width": 1140,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        700,
+        0
+      ],
+      "id": "fb909fc5-6657-4c7b-b493-42fe5c8ed6d3",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C073X71GT5L",
+          "mode": "list",
+          "cachedResultName": "aléatoire"
+        },
+        "text": "=Nouveau document remplis pour ",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1900,
+        120
+      ],
+      "id": "323d805c-d0db-4907-89da-fe08ae2a7166",
+      "name": "Slack",
+      "webhookId": "a5c6f894-3d25-43be-bc24-a2a3554661fb",
+      "credentials": {
+        "slackApi": {
+          "id": "NgquVcjD6pzy06WR",
+          "name": "Slack account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "49408063-9074-4ce4-ae59-b7c1494339af",
+              "name": "nom",
+              "value": "={{ $json.Nom }}",
+              "type": "string"
+            },
+            {
+              "id": "a7cafcdd-5450-49f2-af3a-a12df1f6efea",
+              "name": "prenom",
+              "value": "={{ $json['Prénom'] }}",
+              "type": "string"
+            },
+            {
+              "id": "68bfb19b-5c4b-4b02-9e9c-29b877c9adf0",
+              "name": "date_naissance",
+              "value": "={{ $json['Date de naissance'] }}",
+              "type": "string"
+            },
+            {
+              "id": "2b4b6afe-38c7-4fbd-8df2-2facc028232a",
+              "name": "profession",
+              "value": "={{ $json.Profession }}",
+              "type": "string"
+            },
+            {
+              "id": "25d57356-58da-4ac6-b061-1051e0b45e32",
+              "name": "email",
+              "value": "={{ $json.Email }}",
+              "type": "string"
+            },
+            {
+              "id": "360fb308-6978-4db4-89a8-7fc28085db7a",
+              "name": "Dossier ",
+              "value": "={{ $json['Dossier '] }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        280,
+        120
+      ],
+      "id": "6634a42a-1a0a-4e09-a858-68bf95cdac7a",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "formTitle": "Data extraction",
+        "formDescription": "data",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Nom",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Prénom",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Date de naissance",
+              "fieldType": "date",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Profession",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Dossier ",
+              "fieldType": "number",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        60,
+        120
+      ],
+      "id": "107bae21-e07b-4a5b-925c-6f065fdf99ef",
+      "name": "On form submission",
+      "webhookId": "b64b5ef0-dcbd-4373-8d71-07021e7595f0"
+    },
+    {
+      "parameters": {
+        "operation": "copy",
+        "fileId": {
+          "__rl": true,
+          "value": "1-rjhoZhxZZTiug6sZDGTQAz1HFRkoDIm_XvZrrEXoP4",
+          "mode": "list",
+          "cachedResultName": "n8n_doc_modif",
+          "cachedResultUrl": "https://docs.google.com/document/d/1-rjhoZhxZZTiug6sZDGTQAz1HFRkoDIm_XvZrrEXoP4/edit?usp=drivesdk"
+        },
+        "name": "=Mandat N° {{ $json['Dossier '] }} ",
+        "sameFolder": false,
+        "driveId": {
+          "__rl": true,
+          "value": "My Drive",
+          "mode": "list",
+          "cachedResultName": "My Drive",
+          "cachedResultUrl": "https://drive.google.com/drive/my-drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "0B_5Ikw0xSs3gd0szQ2RKREc5VUk",
+          "mode": "list",
+          "cachedResultName": "docs",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/0B_5Ikw0xSs3gd0szQ2RKREc5VUk?resourcekey=0-jXFw7CXLsD9MRVUw5bFNWw"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        780,
+        120
+      ],
+      "id": "914a9951-80db-4f0e-9c38-4a2228fd9ef6",
+      "name": "Google Drive Copy",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "gLpTj9d96abhIFql",
+          "name": "Google Drive account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Google Drive Copy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Récupération Doc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Récupération Doc": {
+      "main": [
+        [
+          {
+            "node": "Google Docs2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Docs2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive Copy": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3737bb91-bdb6-4b1e-880b-7dd27c5a4c72",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "96006e1d3146cd6cf1a4a3e9c3f38108ebd301b605cd0a9ec38f71200d3bca08"
+  },
+  "id": "jrh8Xo9cnstFv48m",
+  "tags": [
+    {
+      "name": "GDrive",
+      "id": "dR8mLFExPf2Z9Pnw",
+      "createdAt": "2025-02-26T01:26:13.272Z",
+      "updatedAt": "2025-02-26T01:26:13.272Z"
+    },
+    {
+      "name": "GDoc",
+      "id": "tbdcsZUYq8giERxr",
+      "createdAt": "2025-02-26T01:26:25.007Z",
+      "updatedAt": "2025-02-26T01:26:25.007Z"
+    },
+    {
+      "name": "Slack",
+      "id": "Q1gXjMVYpTBhmZzp",
+      "createdAt": "2025-02-26T01:26:33.246Z",
+      "updatedAt": "2025-02-26T01:26:33.246Z"
+    },
+    {
+      "name": "Code",
+      "id": "kylkcq2lKU2ishhP",
+      "createdAt": "2025-02-26T01:26:46.008Z",
+      "updatedAt": "2025-02-26T01:26:46.008Z"
+    },
+    {
+      "createdAt": "2025-02-14T15:52:24.251Z",
+      "updatedAt": "2025-02-14T15:52:24.251Z",
+      "id": "KohyVCZfIXUZc6Lo",
+      "name": "agent"
+    }
+  ]
+}
