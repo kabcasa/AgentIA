@@ -1,0 +1,497 @@
+{
+  "name": "User_request_for_meeting",
+  "nodes": [
+    {
+      "parameters": {
+        "agent": "conversationalAgent",
+        "promptType": "define",
+        "text": "={{ $json[\"date start\"] }}{{ $json.Name }}{{ $json[\"date end\"] }}",
+        "options": {
+          "systemMessage": "=Tu es l'assistant personnel ultime dont la tâche est de transférer la requête d'un utilisateur au bon outil. Tu ne dois pas créer d'événements, envoyer d'emails ou effectuer d'autres actions toi-même. Ton rôle est uniquement d'utiliser le bon outil.\n\n---\n\n## 📌 Outil à utiliser impérativement  \n- **Workflow Tool** : Utilise cet outil pour récupérer les créneaux horaires **disponibles** dans mon calendrier Google **sur la période définie par `{{ $json['date start'] }}` et `{{ $json['date end'] }}` fournies en entrée**.  \n- **ATTENTION :** Tu ne dois jamais répondre sur la disponibilité sans avoir récupéré ces créneaux via le \"Workflow Tool\".  \n- **Vérifie que les créneaux récupérés sont valides** avant de proposer une réponse.  \n\n---\n\n## 📅 Gestion des disponibilités  \n1. **Récupère toujours les horaires disponibles** en appelant le **\"Workflow Tool\"** pour la période entre `{{ $json['date start'] }}` et `{{ $json['date end'] }}`.  \n2. **Si aucun créneau n'est disponible**, répond **aucun créneau horaire n'est disponible**. \n3. **Si des créneaux sont disponibles** formate-les de la manière suivante pour les rajouter au message de l'email:  \n   - Pour chaque créneau, affiche la date et l'heure de début et de fin au format `dd/mm/yyyy HH:MM`.  \n   - Exemple :  \n     ```  \n     - 25/03/2025 09:00 - 18:00  \n     - 26/03/2025 09:00 - 18:00  \n     - 27/03/2025 09:00 - 18:00  \n     - 28/03/2025 09:00 - 18:00  \n     ```  \n\n---\n\n## ✉️ Envoi d'email automatique  \nDans le cas où des créneaux horaires sont disponibles, utilise cet outil pour envoyer un email de confirmation et adopte impérativement le format décrit ci-dessous pour le message :  \n- Destinataire : `{{ $json.email }}`  \n- Objet : `Réponse à votre demande de rendez-vous`  \n- Message au format Markdown :   \n'''json\nBonjour {{ $json.Name }},\n\nMerci pour votre message. Voici nos disponibilités :\n\n{{ $json[\"ai_response\"] }}\n\nSi une date vous convient, veuillez nous le faire savoir.\n\nCordialement,\nL’équipe FuturIA\n'''\n\n\n---\n\n## 🌍 Informations importantes  \n- **Définis le fuseau horaire** sur : **Afrique/Casablanca**  \n- **Date et heure actuelles** : `{{ $now }}`  \n- **Prends en compte correctement les dates et les heures** pour éviter toute confusion.  \n- **Période de recherche** : Les créneaux doivent être récupérés pour la période entre `{{ $json['date start'] }}` et `{{ $json['date end'] }}` fournies en entrée.  \n\n🎯 **Ton objectif principal :** Toujours utiliser le \"Workflow Tool\" pour récupérer la disponibilité avant toute réponse, en tenant compte de la période définie par `date start` et `date end`."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -640,
+        -140
+      ],
+      "id": "ef13b544-14fd-407f-a440-1efc9a2398bf",
+      "name": "AI Agent",
+      "executeOnce": false,
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $('On form submission').item.json.email }}",
+        "subject": "=Réponse à votre demande de rendez-vous du  {{ $json.key }}",
+        "emailType": "text",
+        "message": "={{ $('AI Agent').item.json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -80,
+        -140
+      ],
+      "id": "747bbd82-701f-4d42-a8b6-52cd1745684e",
+      "name": "Gmail",
+      "webhookId": "e7054aac-e0b4-477d-9a42-43f7b7237b7a",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "KqhIQ5batTTy5Njc",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Rendez vous",
+        "formDescription": "Ask for contact",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "email",
+              "fieldType": "email",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "date start",
+              "fieldType": "date"
+            },
+            {
+              "fieldLabel": "date end",
+              "fieldType": "date"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -900,
+        -140
+      ],
+      "id": "09b149c3-2906-4a16-8695-42ba2e6ea98a",
+      "name": "On form submission",
+      "webhookId": "41e5f58d-af8b-4eea-b9c4-56373b64b333"
+    },
+    {
+      "parameters": {
+        "name": "Calendar_Availability",
+        "description": "Call this tool to get my calendar availability as stringified JSON array.",
+        "workflowId": "={{ $workflow.id }}",
+        "fields": {
+          "values": [
+            {
+              "name": "date start",
+              "stringValue": "={{ $('On form submission').item.json['date start'] }}"
+            },
+            {
+              "name": "date end",
+              "stringValue": "={{ $('On form submission').item.json['date end'] }}"
+            }
+          ]
+        }
+      },
+      "id": "5ba9dc51-c9c3-4d54-9b84-d78719a4382b",
+      "name": "Workflow Tool",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        -400,
+        80
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nconst dateString =$('On form submission').first().json.submittedAt ;\nconst date = new Date(dateString);\n\nconst day = String(date.getDate()).padStart(2, '0');\nconst month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based\nconst year = date.getFullYear();\nconst hours = String(date.getHours()).padStart(2, '0');\nconst minutes = String(date.getMinutes()).padStart(2, '0');\n\n  // Format the date as dd-mm-yyyy hh-mm\noutput = `${day}/${month}/${year} ${hours}:${minutes}`;\n\n\n// Example usage\n\n\nconsole.log(output) ;\nreturn [{ key: output }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -280,
+        -140
+      ],
+      "id": "ef38f55c-7d89-4c74-ab34-3e15b5a62182",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "content": "## send calendar availability to user request for meeting",
+        "height": 480,
+        "width": 900
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -760,
+        -260
+      ],
+      "typeVersion": 1,
+      "id": "8203a58e-a140-4853-9256-f7ac6ad364af",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Get all availables Google Calendar time slots from Date start and date end\n",
+        "height": 240,
+        "width": 1040,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -820,
+        260
+      ],
+      "typeVersion": 1,
+      "id": "a63d4a26-f566-49c2-a3cb-da39e6bd2347",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://www.googleapis.com/calendar/v3/freeBusy",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleCalendarOAuth2Api",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"timeMin\": \"{{ $json.start_date}}\",\n  \"timeMax\": \"{{ $json.start_end}}\",\n  \"items\": [{ \"id\": \"primary\" }]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -600,
+        360
+      ],
+      "id": "5b60a999-8754-46a1-b78a-375e9b6bc964",
+      "name": "HTTP Request",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "imNMuWuRUEd315YI",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "date start"
+            },
+            {
+              "name": "date end"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -980,
+        360
+      ],
+      "id": "585527ee-3a9b-446a-b5b3-04d107caa283",
+      "name": "Calendar_Availability"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
+      "typeVersion": 1,
+      "position": [
+        -700,
+        80
+      ],
+      "id": "cb68ddd1-9eb5-4ba8-9753-18983d4c2d77",
+      "name": "DeepSeek Chat Model",
+      "credentials": {
+        "deepSeekApi": {
+          "id": "n6SNYMg9hcnr65ci",
+          "name": "DeepSeek account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "output",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        80,
+        360
+      ],
+      "id": "a4dcad3b-d645-4404-9c45-28668650d7dd",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b4f2915e-e664-461a-b598-1a20535ee1a5",
+              "name": "horaire_de_travail",
+              "value": "9h-18h",
+              "type": "array"
+            },
+            {
+              "id": "6863a0f5-c658-45c4-a3a8-9194a7731797",
+              "name": "jours_de_repos",
+              "value": "samedi,dimanche",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {
+          "ignoreConversionErrors": true
+        }
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -400,
+        360
+      ],
+      "id": "b0d7f94c-1dde-485d-8ff1-ed1009b02d65",
+      "name": "Set working hours"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the Freebusy response\nconst freebusyResponse = $input.all()[0];\n\n// Check if the response contains valid data\nif (!freebusyResponse || !$('HTTP Request').first().json.calendars || !$('HTTP Request').first().json.calendars.primary) {\n  return [{ error: \"No valid data found in Freebusy response.\" }];\n}\n\n// Get busy slots\nconst busySlots = $('HTTP Request').first().json.calendars.primary.busy;\n\n// Get parameters from Edit Fields node\nconst horaireDeTravail = $input.first().json.horaire_de_travail; // Example: \"9h-18h\"\nconst joursDeRepos = $input.first().json.jours_de_repos; // Example: \"samedi,dimanche\"\nconsole.log(\"Working hours:\", horaireDeTravail);\nconsole.log(\"Rest days:\", joursDeRepos);\n\n// Extract working hours\nconst [heureDebut, heureFin] = horaireDeTravail.split('-').map(h => {\n  return parseInt(h.replace('h', ''), 10);\n});\n\n// Convert rest days to array\nconst joursReposArray = joursDeRepos.split(',').map(jour => jour.trim().toLowerCase());\n\n// Define the search period (one week)\nconst startOfWeek = new Date($('HTTP Request').first().json.timeMin);\nconst endOfWeek = new Date($('HTTP Request').first().json.timeMax);\n\n// Function to check if a date is a rest day\nfunction isJourRepos(date) {\n  const joursSemaine = [\"dimanche\", \"lundi\", \"mardi\", \"mercredi\", \"jeudi\", \"vendredi\", \"samedi\"];\n  const jour = joursSemaine[date.getUTCDay()].toLowerCase();\n  return joursReposArray.includes(jour);\n}\n\n// Function to check if a time is within working hours (in local timezone)\nfunction isWithinWorkingHours(date) {\n  const hours = date.getUTCHours();\n  return hours >= heureDebut && hours < heureFin;\n}\n\n// Find all free slots first (between busy slots)\nlet allFreeSlots = [];\nlet lastEventEnd = new Date(startOfWeek);\n\n// Sort busy slots chronologically\nbusySlots.sort((a, b) => new Date(a.start) - new Date(b.start));\n\n// Find gaps between busy slots\nfor (const busySlot of busySlots) {\n  const busyStart = new Date(busySlot.start);\n  const busyEnd = new Date(busySlot.end);\n\n  // If there's a gap between last event end and current event start\n  if (busyStart > lastEventEnd) {\n    allFreeSlots.push({\n      start: lastEventEnd.toISOString(),\n      end: busyStart.toISOString()\n    });\n  }\n\n  // Update last event end\n  lastEventEnd = busyEnd > lastEventEnd ? busyEnd : lastEventEnd;\n}\n\n// Add final free slot if needed\nif (lastEventEnd < endOfWeek) {\n  allFreeSlots.push({\n    start: lastEventEnd.toISOString(),\n    end: endOfWeek.toISOString()\n  });\n}\n\n// Function to break down a slot into day chunks\nfunction breakIntoDayChunks(startDate, endDate) {\n  const chunks = [];\n  let currentStart = new Date(startDate);\n  \n  while (currentStart < endDate) {\n    // Set the end to either the end of the day or the endDate, whichever comes first\n    const dayEnd = new Date(currentStart);\n    dayEnd.setUTCHours(23, 59, 59, 999);\n    \n    const chunkEnd = dayEnd < endDate ? dayEnd : endDate;\n    \n    chunks.push({\n      start: new Date(currentStart),\n      end: new Date(chunkEnd)\n    });\n    \n    // Move to the next day\n    currentStart = new Date(dayEnd);\n    currentStart.setUTCDate(currentStart.getUTCDate() + 1);\n    currentStart.setUTCHours(0, 0, 0, 0);\n  }\n  \n  return chunks;\n}\n\n// Function to apply working hour constraints to a single day slot\nfunction applyWorkingHours(slot) {\n  const slotStart = new Date(slot.start);\n  const slotEnd = new Date(slot.end);\n  \n  // Skip if this is a rest day\n  if (isJourRepos(slotStart)) {\n    return null;\n  }\n  \n  // Adjust start time to working hours if needed\n  let workStart = new Date(slotStart);\n  if (workStart.getUTCHours() < heureDebut) {\n    workStart.setUTCHours(heureDebut, 0, 0, 0);\n  }\n  \n  // Adjust end time to working hours if needed\n  let workEnd = new Date(slotEnd);\n  if (workEnd.getUTCHours() >= heureFin || workEnd.getUTCHours() === 0) {\n    workEnd.setUTCHours(heureFin, 0, 0, 0);\n  }\n  \n  // Check if we still have a valid slot\n  if (workStart >= workEnd) {\n    return null;\n  }\n  \n  return {\n    start: workStart.toISOString(),\n    end: workEnd.toISOString()\n  };\n}\n\n// Filter and process all free slots\nlet filteredFreeSlots = [];\n\nfor (const slot of allFreeSlots) {\n  // Break the slot into day chunks\n  const dayChunks = breakIntoDayChunks(new Date(slot.start), new Date(slot.end));\n  \n  // Process each day chunk\n  for (const chunk of dayChunks) {\n    const processedChunk = applyWorkingHours(chunk);\n    if (processedChunk) {\n      filteredFreeSlots.push(processedChunk);\n    }\n  }\n}\n\n// Return the filtered free slots\nreturn filteredFreeSlots;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -140,
+        360
+      ],
+      "id": "e9c65eb2-51a5-4521-8788-94250542fa50",
+      "name": "Available time slots"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfunction convertToISOString(dateStr) {\n    // Séparer la partie date et heure\n    let [datePart, timePart] = dateStr.split(\" \");\n    let [year, month, day] = datePart.split(\"-\").map(Number);\n\n    // Définir l'heure, les minutes, secondes et millisecondes\n    let hours = 11, minutes = 20, seconds = 0, milliseconds = 0;\n\n    // Créer l'objet Date en UTC\n    let date = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds, milliseconds));\n\n    // Retourner la date au format ISO\n    return date.toISOString();\n}\n\n// Exemple d'utilisation\n\nreturn [{\"start_date\":convertToISOString($input.first().json['date start']),\"start_end\":convertToISOString($input.first().json['date end'])}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        360
+      ],
+      "id": "66458136-8b01-4d03-971d-6e57b7021cf7",
+      "name": "Date conversion"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -560,
+        60
+      ],
+      "typeVersion": 1,
+      "id": "14f13108-550a-4109-9bc8-83c2e2cffc85",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Input : \n- name\n- email\n- start date for meeting request\n- end date for meeting request\n\n## send email with **time slots available for meeting**\n\n## **working hours and days off** are set as parameters",
+        "height": 560,
+        "width": 420,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -1420,
+        -300
+      ],
+      "id": "641b145b-d5aa-4c51-a0a2-f6912a94ba74",
+      "name": "Sticky Note3"
+    }
+  ],
+  "pinData": {
+    "On form submission": [
+      {
+        "json": {
+          "Name": "dd",
+          "email": "kabca@gmail.com",
+          "date start": "2025-03-23",
+          "date end": "2025-04-13",
+          "submittedAt": "2025-03-23T00:55:29.345+00:00",
+          "formMode": "test"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Tool": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        []
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Set working hours",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar_Availability": {
+      "main": [
+        [
+          {
+            "node": "Date conversion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        []
+      ]
+    },
+    "Set working hours": {
+      "main": [
+        [
+          {
+            "node": "Available time slots",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Available time slots": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Date conversion": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Africa/Casablanca",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "a8a48e87-7fa2-43d1-9041-64c8136d7ac4",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "78ec439a7aa1c6d9f7582297744db04067de1a2ec96ee647cecfa554bb83ca15"
+  },
+  "id": "OFyncXDAKQvnRgvR",
+  "tags": [
+    {
+      "createdAt": "2025-03-21T20:58:59.872Z",
+      "updatedAt": "2025-03-21T20:58:59.872Z",
+      "id": "EJGwZCgLjSILDi55",
+      "name": "Code"
+    },
+    {
+      "createdAt": "2025-02-19T17:53:36.070Z",
+      "updatedAt": "2025-02-19T17:53:36.070Z",
+      "id": "NNaMICDknQpMoFyH",
+      "name": "Email"
+    },
+    {
+      "name": "AI agent",
+      "id": "Z15rpOgBG3KtX6TT",
+      "createdAt": "2025-03-24T02:40:03.074Z",
+      "updatedAt": "2025-03-24T02:40:03.074Z"
+    },
+    {
+      "name": "HTTP",
+      "id": "M2Q2ZSPNwRn6a8Hy",
+      "createdAt": "2025-03-24T02:40:12.989Z",
+      "updatedAt": "2025-03-24T02:40:12.989Z"
+    }
+  ]
+}
