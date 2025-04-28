@@ -89,7 +89,7 @@ Welcome to my N8N workflow portfolio\! Here, I share my most effective automatio
 * **Workflow diagram:** 
 
 
-![image5](https://github.com/kabcasa/AgentIA/blob/main/User_request_for_meeting.json)
+![image5](https://github.com/kabcasa/AgentIA/blob/main/Transcript_audio_Google_Driv_%20file.png)
 
 ## 
 
