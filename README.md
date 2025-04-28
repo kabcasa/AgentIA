@@ -22,7 +22,7 @@ Welcome to my N8N workflow portfolio\! Here, I share my most effective automatio
 * **Workflow diagram:**   
     
     
-* ![][image1](https://github.com/kabcasa/AgentIA/blob/main/Modifi%C3%A9_Quentin_gen%C3%A9ration_doc.png)
+* ![image1](https://github.com/kabcasa/AgentIA/blob/main/Modifi%C3%A9_Quentin_gen%C3%A9ration_doc.png)
 
 ---
 
