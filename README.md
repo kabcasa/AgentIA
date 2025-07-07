@@ -93,6 +93,21 @@ Welcome to my N8N workflow portfolio\! Here, I share my most effective automatio
 
 ## 
 
+
+### **🎙 6\. Automated daily information monitoring on a given subject**
+
+**Application:**  Automated monitoring on a specific domain (e.g. AI agent, cybersecurity, etc.).
+
+* **Tools used:** N8N \+ Tavily Search \+ Tavily Extract \+ Notion \+ Slack
+
+* **Results achieved:** Audio file transcription and storage for various business applications.
+
+* **Workflow diagram:** 
+
+
+     ![image6](https://github.com/kabcasa/AgentIA/blob/main/veille.png)
+
+## 
 ## 
 
 ## **🌟 Contact & Collaboration**
